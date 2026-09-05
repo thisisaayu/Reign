@@ -2,8 +2,8 @@
   "name": "reign",
   "productName": "Reign",
   "version": "0.1.0",
-  "description": "Reign \u2014 a writing studio for people who write books. LibreOffice precision meets Obsidian graph thinking.",
-  "author": "Reign Contributors",
+  "description": "Reign — a writing studio for people who write books. LibreOffice precision meets Obsidian graph thinking.",
+  "author": "Reign Contributors <contributors@reign.studio>",
   "license": "MIT",
   "private": true,
   "main": "electron/main.js",
@@ -27,7 +27,7 @@
     "prestart": "node scripts/build-bundled.mjs"
   },
   "devDependencies": {
-    "electron": "^33.0.0",
+    "electron": "^33.4.11",
     "electron-builder": "^25.1.8"
   },
   "build": {
@@ -47,6 +47,7 @@
       "output": "dist"
     },
     "linux": {
+      "maintainer": "Reign Contributors <contributors@reign.studio>",
       "target": [
         {
           "target": "AppImage",
@@ -56,6 +57,18 @@
         },
         {
           "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "pacman",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "dir",
           "arch": [
             "x64"
           ]
@@ -89,5 +102,8 @@
     "portable": {
       "artifactName": "${productName}-${version}-portable.${ext}"
     }
+  },
+  "allowScripts": {
+    "electron@33.4.11": true
   }
 }
