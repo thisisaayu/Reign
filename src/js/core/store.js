@@ -17,22 +17,60 @@ export const DEFAULT_DOCS = [
   { id:'sigil', title:'The Obsidian Sigil', type:'world', folder:'World', content:`<h1>The Obsidian Sigil</h1><p>A black-glass circlet, warm to the touch. Said to be a fragment of the dead god's crown.</p><p>Held at various times by [[Elian Voss]]. Sought in [[The Hollow Crown]]. Origin: [[Karst — The Bone City]].</p>`, created:Date.now()-400000, updated:Date.now()-60000 },
 ];
 
+export const LS_FOLDERS = 'reign-folders-v2';
+export const DEFAULT_FOLDERS = [...new Set(DEFAULT_DOCS.map(d=> d.folder).filter(Boolean))];
+
 export const DEFAULT_SETTINGS = { theme:'dark', syntax:true, focus:false, typewriter:false, zen:false, goal:500, zoom:100, novelWidth:'narrow', novelPaged:true };
 
 export function createStore() {
   let docs = [];
+  let folders = [];
   let activeId = null;
+  let activeFolder = null;
   let settings = { ...DEFAULT_SETTINGS };
+
+  function allFolders(){
+    const s=new Set(folders);
+    for(const d of docs) if(d.folder) s.add(d.folder);
+    return [...s].sort();
+  }
+  function ensureFolder(name){
+    const n=(name||'').trim(); if(!n) return;
+    if(!folders.includes(n)) folders.push(n);
+  }
+  function renameFolder(oldName, newName){
+    const nn=(newName||'').trim(); if(!nn || nn===oldName) return false;
+    if(folders.includes(nn)) return false;
+    const idx=folders.indexOf(oldName);
+    if(idx>=0) folders[idx]=nn; else folders.push(nn);
+    for(const d of docs) if(d.folder===oldName) d.folder=nn;
+    if(activeFolder===oldName) activeFolder=nn;
+    return true;
+  }
+  function deleteFolder(name){
+    if(!allFolders().includes(name)) return false;
+    if(docs.some(d=>d.folder===name)) return false;
+    folders=folders.filter(f=>f!==name);
+    if(activeFolder===name) activeFolder=null;
+    return true;
+  }
 
   function load() {
     try { docs = JSON.parse(localStorage.getItem(LS_DOCS)) || JSON.parse(JSON.stringify(DEFAULT_DOCS)); } catch { docs = JSON.parse(JSON.stringify(DEFAULT_DOCS)); }
+    try { folders = JSON.parse(localStorage.getItem(LS_FOLDERS)) || [...new Set(docs.map(d=>d.folder).filter(Boolean))]; } catch { folders = [...new Set(docs.map(d=>d.folder).filter(Boolean))]; }
     try { Object.assign(settings, JSON.parse(localStorage.getItem(LS_SETTINGS))||{}); } catch {}
     activeId = docs[0]?.id || null;
+    activeFolder = storeActiveFolderFallback();
+  }
+  function storeActiveFolderFallback(){
+    const d=docs.find(x=>x.id===activeId);
+    return (d?.folder) || allFolders()[0] || null;
   }
   function save() {
     localStorage.setItem(LS_DOCS, JSON.stringify(docs));
+    localStorage.setItem(LS_FOLDERS, JSON.stringify(folders));
     localStorage.setItem(LS_SETTINGS, JSON.stringify(settings));
-    window.reignAPI?.save?.({ docs, settings, activeId });
+    window.reignAPI?.save?.({ docs, folders, settings, activeId, activeFolder });
   }
   // Electron may hydrate from disk on boot
   async function hydrateFromDisk() {
@@ -40,16 +78,23 @@ export function createStore() {
     try {
       const disk = await window.reignAPI.load();
       if (disk?.docs?.length) { docs = disk.docs; activeId = disk.activeId || docs[0].id; }
+      if (Array.isArray(disk?.folders)) folders=disk.folders;
+      else folders=[...new Set(docs.map(d=>d.folder).filter(Boolean))];
       if (disk?.settings) Object.assign(settings, disk.settings);
+      if (disk?.activeFolder) activeFolder=disk.activeFolder;
+      else activeFolder=storeActiveFolderFallback();
     } catch {}
   }
 
   return {
     get docs(){ return docs; }, set docs(v){ docs=v; },
+    get folders(){ return folders; }, set folders(v){ folders=v; },
     get activeId(){ return activeId; }, set activeId(v){ activeId=v; },
+    get activeFolder(){ return activeFolder; }, set activeFolder(v){ activeFolder=v; },
     get settings(){ return settings; },
     load, save, hydrateFromDisk,
     getDoc(id){ return docs.find(d=>d.id===id); },
     activeDoc(){ return docs.find(d=>d.id===activeId); },
+    allFolders, ensureFolder, renameFolder, deleteFolder,
   };
 }

@@ -36,11 +36,9 @@ window.__reignApplySettings = applySettings;
 
 function createDoc(templateKey){
   const { TEMPLATES } = { TEMPLATES: (awaitImportHack()) };
-  // fallback inline to avoid async import complexity
   return _createDoc(templateKey);
 }
 function _createDoc(templateKey){
-  // inline templates to avoid circular
   const MAP={
     character: { title:'New Character', type:'character', content:`<h1>Character Name</h1><p><b>Role:</b> —</p><blockquote>One-line essence.</blockquote><h2>Appearance</h2><p>…</p><h2>Backstory</h2><p>…</p><h2>Relationships</h2><ul><li>[[Another Character]] — description</li></ul>` },
     world: { title:'New Location', type:'world', content:`<h1>Place Name</h1><blockquote>A one-line evocation.</blockquote><h2>Geography</h2><p>…</p><h2>Culture</h2><p>…</p><h2>Connected</h2><p>[[Related Note]]</p>` },
@@ -48,13 +46,33 @@ function _createDoc(templateKey){
     chapter: { title:'Chapter —', type:'manuscript', content:`<h1>Chapter One</h1><p>The story begins…</p><p>Reference other notes with [[double brackets]].</p>` },
   };
   const t = templateKey ? MAP[templateKey] : null;
-  const id='doc-'+Date.now();
-  const doc={ id, title: t? t.title : 'Untitled Note', type: t? t.type : 'manuscript', folder: t? (t.type==='character'?'Characters': t.type==='world'?'World':'Manuscripts') : 'Manuscripts', content: t? t.content : '<p>Start writing… Type <code>[[</code> to link, <code>/</code> for commands.</p>', created:Date.now(), updated:Date.now(), words:0 };
-  store.docs.push(doc); store.activeId=id; store.save(); renderFileTree(store, refreshAll, persistEditor); loadDoc(store); refreshAll();
+  return createDocInFolder(t ? (t.type==='character'?'Characters': t.type==='world'?'World':'Manuscripts') : null, t);
+}
+function createDocInFolder(folder, template){
+  // folder: string|null → use selected folder, or template default, or active doc's folder
+  const targetFolder = folder || store.activeFolder || store.allFolders()?.[0] || 'Manuscripts';
+  if(targetFolder) store.ensureFolder(targetFolder);
+  const t = template && typeof template==='object' ? template : null;
+  const id='doc-'+Date.now()+'-'+Math.random().toString(36).slice(2,6);
+  const doc={ id, title: t? t.title : 'Untitled Note', type: t? t.type : 'manuscript', folder: targetFolder, content: t? t.content : '<p>Start writing… Type <code>[[</code> to link, <code>/</code> for commands.</p>', created:Date.now(), updated:Date.now(), words:0 };
+  store.docs.push(doc); store.activeId=id; store.activeFolder=targetFolder; store.save(); renderFileTree(store, refreshAll, persistEditor); loadDoc(store); refreshAll();
   setTimeout(()=>{ const el=document.getElementById('doc-title'); if(el){ el.focus(); el.select(); } },50);
+  return doc;
 }
 function awaitImportHack(){ return null; }
 window.__reignCreateDoc = _createDoc;
+window.__reignCreateDocInFolder = (folder, templateKey)=>{
+  if(typeof templateKey==='string'){
+    const MAP={
+      character: { title:'New Character', type:'character', content:`<h1>Character Name</h1><p><b>Role:</b> —</p><blockquote>One-line essence.</blockquote><h2>Appearance</h2><p>…</p><h2>Backstory</h2><p>…</p><h2>Relationships</h2><ul><li>[[Another Character]] — description</li></ul>` },
+      world: { title:'New Location', type:'world', content:`<h1>Place Name</h1><blockquote>A one-line evocation.</blockquote><h2>Geography</h2><p>…</p><h2>Culture</h2><p>…</p><h2>Connected</h2><p>[[Related Note]]</p>` },
+      scene: { title:'New Scene', type:'scene', content:`<h1>Scene — Chapter —</h1><p><b>POV:</b> — &nbsp; <b>Goal:</b> — &nbsp; <b>Conflict:</b> — &nbsp; <b>Outcome:</b> —</p><hr><p>Write the scene…</p>` },
+      chapter: { title:'Chapter —', type:'manuscript', content:`<h1>Chapter One</h1><p>The story begins…</p><p>Reference other notes with [[double brackets]].</p>` },
+    };
+    return createDocInFolder(folder, MAP[templateKey]||null);
+  }
+  return createDocInFolder(folder, templateKey||null);
+};
 
 let persistEditorRef = ()=>{};
 function refreshAll(){ renderCards(store, switchDoc); updateStats(); updateGoal(store); renderOutline(); renderBacklinks(store, switchDoc, _createDoc); renderPreview(store); renderNovel(store); }
@@ -98,15 +116,27 @@ function initSideTabs(){
     b.classList.add('active');
     document.querySelector(`#sidebar-right .sb-panel[data-panel="${b.dataset.tab}"]`)?.classList.add('active');
   }));
-  document.getElementById('btn-new-file')?.addEventListener('click', ()=> _createDoc());
+  document.getElementById('btn-new-file')?.addEventListener('click', ()=> createDocInFolder(null, null));
   document.getElementById('btn-new-folder')?.addEventListener('click', ()=>{
-    const name=prompt('Folder name:'); if(!name) return;
-    store.docs.push({ id:'doc-'+Date.now(), title:'Untitled', type:'manuscript', folder:name, content:'<p></p>', created:Date.now(), updated:Date.now(), words:0 });
-    store.save(); renderFileTree(store, refreshAll, persistEditorRef); toast('Folder "'+name+'" created');
+    const raw=prompt('Folder name:'); if(raw==null) return;
+    const name=raw.trim(); if(!name) return;
+    if(store.allFolders().includes(name)) return alert('A folder named "'+name+'" already exists.');
+    store.ensureFolder(name);
+    store.activeFolder=name;
+    store.save(); renderFileTree(store, refreshAll, persistEditorRef); toast('Folder "'+name+'" created — click ＋ or "New document" to add a note inside.');
+  });
+  // inline "New document here" inside file-tree header when a folder is selected (injected by renderFileTree empty hint; also wire header button)
+  document.getElementById('file-tree')?.addEventListener('dblclick', e=>{
+    const row=e.target.closest('.tree-folder'); if(!row) return;
+    if(e.target.closest('button')) return;
+    window.__reignCreateDocInFolder(row.dataset.folder);
   });
   document.getElementById('btn-import')?.addEventListener('click', ()=> document.getElementById('file-picker')?.click());
-  document.querySelectorAll('.template-btn').forEach(b=> b.addEventListener('click', ()=> _createDoc(b.dataset.template)));
-  document.getElementById('btn-add-card')?.addEventListener('click', ()=> _createDoc('scene'));
+  document.querySelectorAll('.template-btn').forEach(b=> b.addEventListener('click', ()=> {
+    const folder = store.activeFolder || (b.dataset.template==='character'?'Characters': b.dataset.template==='world'?'World':'Manuscripts');
+    window.__reignCreateDocInFolder(folder, b.dataset.template);
+  }));
+  document.getElementById('btn-add-card')?.addEventListener('click', ()=> window.__reignCreateDocInFolder(store.activeFolder||'Manuscripts', 'scene'));
 }
 
 function initPomodoro(){
@@ -165,7 +195,6 @@ function renderStreakbar(){
   };
   render();
   document.getElementById('btn-snapshot')?.addEventListener('click', ()=>{ pushSnapshot(store); render(); toast('Snapshot saved'); });
-  // re-render on doc switch
   const origSwitch=switchDoc;
   switchDoc=function(id){ origSwitch(id); setTimeout(render,50); };
   window.__reignSwitchDoc=switchDoc;
@@ -197,7 +226,7 @@ document.getElementById('btn-command')?.addEventListener('click', ()=> palette.s
 document.addEventListener('keydown', e=>{
   if((e.ctrlKey||e.metaKey) && e.key==='k'){ e.preventDefault(); palette.show(); }
   if((e.ctrlKey||e.metaKey) && e.key==='f'){ e.preventDefault(); finder.show(); }
-  if((e.ctrlKey||e.metaKey) && e.key==='n'){ e.preventDefault(); _createDoc(); }
+  if((e.ctrlKey||e.metaKey) && e.key==='n'){ e.preventDefault(); createDocInFolder(null, null); }
   if((e.ctrlKey||e.metaKey) && e.key==='s'){ e.preventDefault(); persistEditorRef(); store.save(); toast('Saved ✓'); }
 });
 document.addEventListener('mousedown', e=>{

@@ -16,21 +16,58 @@ const DEFAULT_DOCS = [
   { id:'karst', title:'Karst — The Bone City', type:'world', folder:'World', content:`<h1>Karst — The Bone City</h1><blockquote>A city inside a god. Or a god inside a city.</blockquote><h2>Districts</h2><ul><li><b>The Sternum</b> — administrative heart</li><li><b>The Ribs</b> — residential arcs</li><li><b>The Marrow Deep</b> — forbidden</li></ul><p>Home to [[Elian Voss]]. Central artifact: [[The Obsidian Sigil]]. Featured in [[The Hollow Crown]].</p>`, created:Date.now()-300000, updated:Date.now()-80000 },
   { id:'sigil', title:'The Obsidian Sigil', type:'world', folder:'World', content:`<h1>The Obsidian Sigil</h1><p>A black-glass circlet, warm to the touch. Said to be a fragment of the dead god's crown.</p><p>Held at various times by [[Elian Voss]]. Sought in [[The Hollow Crown]]. Origin: [[Karst — The Bone City]].</p>`, created:Date.now()-400000, updated:Date.now()-60000 },
 ];
+const LS_FOLDERS = 'reign-folders-v2';
+const DEFAULT_FOLDERS = [...new Set(DEFAULT_DOCS.map(d=> d.folder).filter(Boolean))];
 const DEFAULT_SETTINGS = { theme:'dark', syntax:true, focus:false, typewriter:false, zen:false, goal:500, zoom:100, novelWidth:'narrow', novelPaged:true };
 function createStore() {
   let docs = [];
+  let folders = [];
   let activeId = null;
+  let activeFolder = null;
   let settings = { ...DEFAULT_SETTINGS };
+
+  function allFolders(){
+    const s=new Set(folders);
+    for(const d of docs) if(d.folder) s.add(d.folder);
+    return [...s].sort();
+  }
+  function ensureFolder(name){
+    const n=(name||'').trim(); if(!n) return;
+    if(!folders.includes(n)) folders.push(n);
+  }
+  function renameFolder(oldName, newName){
+    const nn=(newName||'').trim(); if(!nn || nn===oldName) return false;
+    if(folders.includes(nn)) return false;
+    const idx=folders.indexOf(oldName);
+    if(idx>=0) folders[idx]=nn; else folders.push(nn);
+    for(const d of docs) if(d.folder===oldName) d.folder=nn;
+    if(activeFolder===oldName) activeFolder=nn;
+    return true;
+  }
+  function deleteFolder(name){
+    if(!allFolders().includes(name)) return false;
+    if(docs.some(d=>d.folder===name)) return false;
+    folders=folders.filter(f=>f!==name);
+    if(activeFolder===name) activeFolder=null;
+    return true;
+  }
 
   function load() {
     try { docs = JSON.parse(localStorage.getItem(LS_DOCS)) || JSON.parse(JSON.stringify(DEFAULT_DOCS)); } catch { docs = JSON.parse(JSON.stringify(DEFAULT_DOCS)); }
+    try { folders = JSON.parse(localStorage.getItem(LS_FOLDERS)) || [...new Set(docs.map(d=>d.folder).filter(Boolean))]; } catch { folders = [...new Set(docs.map(d=>d.folder).filter(Boolean))]; }
     try { Object.assign(settings, JSON.parse(localStorage.getItem(LS_SETTINGS))||{}); } catch {}
     activeId = docs[0]?.id || null;
+    activeFolder = storeActiveFolderFallback();
+  }
+  function storeActiveFolderFallback(){
+    const d=docs.find(x=>x.id===activeId);
+    return (d?.folder) || allFolders()[0] || null;
   }
   function save() {
     localStorage.setItem(LS_DOCS, JSON.stringify(docs));
+    localStorage.setItem(LS_FOLDERS, JSON.stringify(folders));
     localStorage.setItem(LS_SETTINGS, JSON.stringify(settings));
-    window.reignAPI?.save?.({ docs, settings, activeId });
+    window.reignAPI?.save?.({ docs, folders, settings, activeId, activeFolder });
   }
   // Electron may hydrate from disk on boot
   async function hydrateFromDisk() {
@@ -38,17 +75,24 @@ function createStore() {
     try {
       const disk = await window.reignAPI.load();
       if (disk?.docs?.length) { docs = disk.docs; activeId = disk.activeId || docs[0].id; }
+      if (Array.isArray(disk?.folders)) folders=disk.folders;
+      else folders=[...new Set(docs.map(d=>d.folder).filter(Boolean))];
       if (disk?.settings) Object.assign(settings, disk.settings);
+      if (disk?.activeFolder) activeFolder=disk.activeFolder;
+      else activeFolder=storeActiveFolderFallback();
     } catch {}
   }
 
   return {
     get docs(){ return docs; }, set docs(v){ docs=v; },
+    get folders(){ return folders; }, set folders(v){ folders=v; },
     get activeId(){ return activeId; }, set activeId(v){ activeId=v; },
+    get activeFolder(){ return activeFolder; }, set activeFolder(v){ activeFolder=v; },
     get settings(){ return settings; },
     load, save, hydrateFromDisk,
     getDoc(id){ return docs.find(d=>d.id===id); },
     activeDoc(){ return docs.find(d=>d.id===activeId); },
+    allFolders, ensureFolder, renameFolder, deleteFolder,
   };
 }
 
@@ -361,26 +405,80 @@ function loadDoc(store){
   document.getElementById('doc-path').textContent = '/ '+(d.folder||'').toLowerCase()+' / '+slug+'.md';
   document.getElementById('ref-id').textContent = 'reign://'+slug;
   document.getElementById('editor').innerHTML = d.content;
+  store.activeFolder = d.folder || null;
 }
 function renderFileTree(store, refreshAll, persistEditor){
   const el = document.getElementById('file-tree');
   if(!el) return;
-  const folders = {};
-  store.docs.forEach(d=>{ (folders[d.folder||'Unsorted'] ||= []).push(d); });
+  const grouped = {};
+  store.docs.forEach(d=>{ (grouped[d.folder||'Unsorted'] ||= []).push(d); });
+  const allFolders = store.allFolders ? store.allFolders() : Object.keys(grouped).sort();
   let html='';
-  for(const [folder, list] of Object.entries(folders)){
-    html+=`<div class="tree-folder">${folder}</div>`;
+  for(const folder of allFolders){
+    const list = grouped[folder] || [];
+    const isSelected = store.activeFolder === folder;
+    const isEmpty = list.length === 0;
+    html+=`<div class="tree-folder${isSelected?' is-selected':''}${isEmpty?' is-empty':''}" data-folder="${esc(folder)}" title="${isEmpty?'Empty — click to select':''}"><span class="tree-folder-name">${esc(folder)}</span><span class="tree-folder-count">${list.length || '·'}</span><span class="tree-folder-actions"><button class="tree-folder-add" data-folder-add="${esc(folder)}" title="New document in ${esc(folder)}">＋</button><button class="tree-folder-rename" data-folder-rename="${esc(folder)}" title="Rename folder">✎</button><button class="tree-folder-del" data-folder-del="${esc(folder)}" title="${isEmpty?'Delete empty folder':'Folder not empty'}">✕</button></span></div>`;
+    if(isEmpty){
+      html+=`<div class="tree-empty-hint" data-folder="${esc(folder)}">Empty — <button class="tree-empty-new" data-folder-add="${esc(folder)}">＋ New document</button></div>`;
+    }
     for(const d of list){
       const icon = d.type==='character'?'👤': d.type==='world'?'🌍': d.type==='scene'?'🎬':'📄';
       html+=`<div class="tree-item ${d.id===store.activeId?'active':''}" data-id="${d.id}"><span class="tree-icon">${icon}</span><span class="tree-name">${esc(d.title)}</span><button class="tree-del" data-del="${d.id}" title="Delete">✕</button></div>`;
     }
   }
   el.innerHTML = html;
+  // folder header click → select folder
+  el.querySelectorAll('.tree-folder').forEach(row=>{
+    row.addEventListener('click', e=>{
+      if(e.target.closest('[data-folder-add],[data-folder-rename],[data-folder-del]')) return;
+      store.activeFolder=row.dataset.folder;
+      store.save();
+      renderFileTree(store, refreshAll, persistEditor);
+    });
+  });
+  el.querySelectorAll('[data-folder-add]').forEach(b=>{
+    b.addEventListener('click', e=>{
+      e.stopPropagation();
+      const folder=b.dataset.folderAdd;
+      store.activeFolder=folder;
+      window.__reignCreateDocInFolder?.(folder);
+    });
+  });
+  el.querySelectorAll('[data-folder-rename]').forEach(b=>{
+    b.addEventListener('click', e=>{
+      e.stopPropagation();
+      const oldName=b.dataset.folderRename;
+      const next=prompt('Rename folder:', oldName);
+      if(next==null) return;
+      const nn=next.trim();
+      if(!nn || nn===oldName) return;
+      if(store.allFolders().includes(nn)) return alert('A folder named "'+nn+'" already exists.');
+      store.renameFolder(oldName, nn);
+      store.save();
+      renderFileTree(store, refreshAll, persistEditor);
+      refreshAll();
+    });
+  });
+  el.querySelectorAll('[data-folder-del]').forEach(b=>{
+    b.addEventListener('click', e=>{
+      e.stopPropagation();
+      const name=b.dataset.folderDel;
+      const hasDocs=(grouped[name]||[]).length>0;
+      if(hasDocs) return alert('Cannot delete "'+name+'": folder is not empty. Move or delete its documents first.');
+      if(!confirm('Delete empty folder "'+name+'"?')) return;
+      store.deleteFolder(name);
+      store.save();
+      renderFileTree(store, refreshAll, persistEditor);
+    });
+  });
   el.querySelectorAll('.tree-item').forEach(row=>{
     row.addEventListener('click', e=>{
       if(e.target.dataset.del) return;
       if(persistEditor) persistEditor();
       store.activeId=row.dataset.id;
+      const doc=store.getDoc(row.dataset.id);
+      if(doc) store.activeFolder=doc.folder || null;
       loadDoc(store); refreshAll(); store.save(); renderFileTree(store, refreshAll, persistEditor);
     });
   });
@@ -393,6 +491,8 @@ function renderFileTree(store, refreshAll, persistEditor){
       if(!confirm('Delete "'+doc.title+'"?')) return;
       store.docs = store.docs.filter(d=>d.id!==id);
       if(store.activeId===id) store.activeId=store.docs[0].id;
+      const nextActive=store.activeDoc();
+      store.activeFolder=nextActive ? (nextActive.folder||null) : (store.allFolders()[0]||null);
       store.save(); renderFileTree(store, refreshAll, persistEditor); loadDoc(store); refreshAll();
     });
   });
@@ -859,11 +959,9 @@ window.__reignApplySettings = applySettings;
 
 function createDoc(templateKey){
   const { TEMPLATES } = { TEMPLATES: (awaitImportHack()) };
-  // fallback inline to avoid async import complexity
   return _createDoc(templateKey);
 }
 function _createDoc(templateKey){
-  // inline templates to avoid circular
   const MAP={
     character: { title:'New Character', type:'character', content:`<h1>Character Name</h1><p><b>Role:</b> —</p><blockquote>One-line essence.</blockquote><h2>Appearance</h2><p>…</p><h2>Backstory</h2><p>…</p><h2>Relationships</h2><ul><li>[[Another Character]] — description</li></ul>` },
     world: { title:'New Location', type:'world', content:`<h1>Place Name</h1><blockquote>A one-line evocation.</blockquote><h2>Geography</h2><p>…</p><h2>Culture</h2><p>…</p><h2>Connected</h2><p>[[Related Note]]</p>` },
@@ -871,13 +969,33 @@ function _createDoc(templateKey){
     chapter: { title:'Chapter —', type:'manuscript', content:`<h1>Chapter One</h1><p>The story begins…</p><p>Reference other notes with [[double brackets]].</p>` },
   };
   const t = templateKey ? MAP[templateKey] : null;
-  const id='doc-'+Date.now();
-  const doc={ id, title: t? t.title : 'Untitled Note', type: t? t.type : 'manuscript', folder: t? (t.type==='character'?'Characters': t.type==='world'?'World':'Manuscripts') : 'Manuscripts', content: t? t.content : '<p>Start writing… Type <code>[[</code> to link, <code>/</code> for commands.</p>', created:Date.now(), updated:Date.now(), words:0 };
-  store.docs.push(doc); store.activeId=id; store.save(); renderFileTree(store, refreshAll, persistEditor); loadDoc(store); refreshAll();
+  return createDocInFolder(t ? (t.type==='character'?'Characters': t.type==='world'?'World':'Manuscripts') : null, t);
+}
+function createDocInFolder(folder, template){
+  // folder: string|null → use selected folder, or template default, or active doc's folder
+  const targetFolder = folder || store.activeFolder || store.allFolders()?.[0] || 'Manuscripts';
+  if(targetFolder) store.ensureFolder(targetFolder);
+  const t = template && typeof template==='object' ? template : null;
+  const id='doc-'+Date.now()+'-'+Math.random().toString(36).slice(2,6);
+  const doc={ id, title: t? t.title : 'Untitled Note', type: t? t.type : 'manuscript', folder: targetFolder, content: t? t.content : '<p>Start writing… Type <code>[[</code> to link, <code>/</code> for commands.</p>', created:Date.now(), updated:Date.now(), words:0 };
+  store.docs.push(doc); store.activeId=id; store.activeFolder=targetFolder; store.save(); renderFileTree(store, refreshAll, persistEditor); loadDoc(store); refreshAll();
   setTimeout(()=>{ const el=document.getElementById('doc-title'); if(el){ el.focus(); el.select(); } },50);
+  return doc;
 }
 function awaitImportHack(){ return null; }
 window.__reignCreateDoc = _createDoc;
+window.__reignCreateDocInFolder = (folder, templateKey)=>{
+  if(typeof templateKey==='string'){
+    const MAP={
+      character: { title:'New Character', type:'character', content:`<h1>Character Name</h1><p><b>Role:</b> —</p><blockquote>One-line essence.</blockquote><h2>Appearance</h2><p>…</p><h2>Backstory</h2><p>…</p><h2>Relationships</h2><ul><li>[[Another Character]] — description</li></ul>` },
+      world: { title:'New Location', type:'world', content:`<h1>Place Name</h1><blockquote>A one-line evocation.</blockquote><h2>Geography</h2><p>…</p><h2>Culture</h2><p>…</p><h2>Connected</h2><p>[[Related Note]]</p>` },
+      scene: { title:'New Scene', type:'scene', content:`<h1>Scene — Chapter —</h1><p><b>POV:</b> — &nbsp; <b>Goal:</b> — &nbsp; <b>Conflict:</b> — &nbsp; <b>Outcome:</b> —</p><hr><p>Write the scene…</p>` },
+      chapter: { title:'Chapter —', type:'manuscript', content:`<h1>Chapter One</h1><p>The story begins…</p><p>Reference other notes with [[double brackets]].</p>` },
+    };
+    return createDocInFolder(folder, MAP[templateKey]||null);
+  }
+  return createDocInFolder(folder, templateKey||null);
+};
 
 let persistEditorRef = ()=>{};
 function refreshAll(){ renderCards(store, switchDoc); updateStats(); updateGoal(store); renderOutline(); renderBacklinks(store, switchDoc, _createDoc); renderPreview(store); renderNovel(store); }
@@ -921,15 +1039,27 @@ function initSideTabs(){
     b.classList.add('active');
     document.querySelector(`#sidebar-right .sb-panel[data-panel="${b.dataset.tab}"]`)?.classList.add('active');
   }));
-  document.getElementById('btn-new-file')?.addEventListener('click', ()=> _createDoc());
+  document.getElementById('btn-new-file')?.addEventListener('click', ()=> createDocInFolder(null, null));
   document.getElementById('btn-new-folder')?.addEventListener('click', ()=>{
-    const name=prompt('Folder name:'); if(!name) return;
-    store.docs.push({ id:'doc-'+Date.now(), title:'Untitled', type:'manuscript', folder:name, content:'<p></p>', created:Date.now(), updated:Date.now(), words:0 });
-    store.save(); renderFileTree(store, refreshAll, persistEditorRef); toast('Folder "'+name+'" created');
+    const raw=prompt('Folder name:'); if(raw==null) return;
+    const name=raw.trim(); if(!name) return;
+    if(store.allFolders().includes(name)) return alert('A folder named "'+name+'" already exists.');
+    store.ensureFolder(name);
+    store.activeFolder=name;
+    store.save(); renderFileTree(store, refreshAll, persistEditorRef); toast('Folder "'+name+'" created — click ＋ or "New document" to add a note inside.');
+  });
+  // inline "New document here" inside file-tree header when a folder is selected (injected by renderFileTree empty hint; also wire header button)
+  document.getElementById('file-tree')?.addEventListener('dblclick', e=>{
+    const row=e.target.closest('.tree-folder'); if(!row) return;
+    if(e.target.closest('button')) return;
+    window.__reignCreateDocInFolder(row.dataset.folder);
   });
   document.getElementById('btn-import')?.addEventListener('click', ()=> document.getElementById('file-picker')?.click());
-  document.querySelectorAll('.template-btn').forEach(b=> b.addEventListener('click', ()=> _createDoc(b.dataset.template)));
-  document.getElementById('btn-add-card')?.addEventListener('click', ()=> _createDoc('scene'));
+  document.querySelectorAll('.template-btn').forEach(b=> b.addEventListener('click', ()=> {
+    const folder = store.activeFolder || (b.dataset.template==='character'?'Characters': b.dataset.template==='world'?'World':'Manuscripts');
+    window.__reignCreateDocInFolder(folder, b.dataset.template);
+  }));
+  document.getElementById('btn-add-card')?.addEventListener('click', ()=> window.__reignCreateDocInFolder(store.activeFolder||'Manuscripts', 'scene'));
 }
 
 function initPomodoro(){
@@ -988,7 +1118,6 @@ function renderStreakbar(){
   };
   render();
   document.getElementById('btn-snapshot')?.addEventListener('click', ()=>{ pushSnapshot(store); render(); toast('Snapshot saved'); });
-  // re-render on doc switch
   const origSwitch=switchDoc;
   switchDoc=function(id){ origSwitch(id); setTimeout(render,50); };
   window.__reignSwitchDoc=switchDoc;
@@ -1020,7 +1149,7 @@ document.getElementById('btn-command')?.addEventListener('click', ()=> palette.s
 document.addEventListener('keydown', e=>{
   if((e.ctrlKey||e.metaKey) && e.key==='k'){ e.preventDefault(); palette.show(); }
   if((e.ctrlKey||e.metaKey) && e.key==='f'){ e.preventDefault(); finder.show(); }
-  if((e.ctrlKey||e.metaKey) && e.key==='n'){ e.preventDefault(); _createDoc(); }
+  if((e.ctrlKey||e.metaKey) && e.key==='n'){ e.preventDefault(); createDocInFolder(null, null); }
   if((e.ctrlKey||e.metaKey) && e.key==='s'){ e.preventDefault(); persistEditorRef(); store.save(); toast('Saved ✓'); }
 });
 document.addEventListener('mousedown', e=>{
