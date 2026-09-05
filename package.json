@@ -1,0 +1,93 @@
+{
+  "name": "reign",
+  "productName": "Reign",
+  "version": "0.1.0",
+  "description": "Reign \u2014 a writing studio for people who write books. LibreOffice precision meets Obsidian graph thinking.",
+  "author": "Reign Contributors",
+  "license": "MIT",
+  "private": true,
+  "main": "electron/main.js",
+  "homepage": "https://github.com/your-org/reign#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/reign.git"
+  },
+  "scripts": {
+    "dev": "electron .",
+    "start": "electron .",
+    "serve": "python3 -m http.server 5173",
+    "build": "electron-builder",
+    "dist": "electron-builder",
+    "dist:linux": "electron-builder --linux",
+    "dist:win": "electron-builder --win",
+    "dist:all": "electron-builder --linux --win",
+    "postinstall": "node scripts/build-bundled.mjs; electron-builder install-app-deps || true",
+    "prebuild": "node scripts/build-bundled.mjs",
+    "predev": "node scripts/build-bundled.mjs",
+    "prestart": "node scripts/build-bundled.mjs"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "studio.reign.app",
+    "productName": "Reign",
+    "files": [
+      "index.html",
+      "src/**/*",
+      "electron/**/*",
+      "assets/**/*",
+      "vault/**/*",
+      "app.bundled.js",
+      "manifest.json",
+      "sw.js"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Office",
+      "icon": "assets/icons/icon.png"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icons/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable.${ext}"
+    }
+  }
+}

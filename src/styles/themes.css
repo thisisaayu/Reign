@@ -1,0 +1,119 @@
+/* ── Theme tokens ── */
+:root {
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow: 0 4px 24px rgba(0,0,0,.18);
+  --shadow-sm: 0 1px 8px rgba(0,0,0,.12);
+  --font-sans: 'Instrument Sans', system-ui, sans-serif;
+  --font-serif: 'Newsreader', Georgia, serif;
+  --font-display: 'Fraunces', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+/* DARK (default) */
+[data-theme="dark"] {
+  --bg: #141420;
+  --bg-2: #1e1e32;
+  --bg-3: #2a2a44;
+  --bg-4: #34345a;
+  --surface: #1e1e32;
+  --surface-2: #262640;
+  --border: #2e2e4a;
+  --border-strong: #3a3a5c;
+  --text: #e8e6f0;
+  --text-dim: #9a98b0;
+  --text-faint: #6a6888;
+  --accent: #7c6cf0;
+  --accent-2: #ff6b9d;
+  --accent-glow: rgba(124,108,240,.25);
+  --success: #4ecdc4;
+  --warn: #f0c040;
+  --ruler: #2a2a44;
+  --page-bg: #1e1e32;
+  --page-shadow: 0 8px 40px rgba(0,0,0,.45);
+  --graph-node: #7c6cf0;
+  --graph-edge: rgba(255,255,255,.08);
+  --code-bg: #1a1a2e;
+  --selection: rgba(124,108,240,.3);
+}
+
+/* AMOLED */
+[data-theme="amoled"] {
+  --bg: #000000;
+  --bg-2: #0a0a0a;
+  --bg-3: #141414;
+  --bg-4: #1e1e1e;
+  --surface: #0a0a0a;
+  --surface-2: #141414;
+  --border: #1e1e1e;
+  --border-strong: #2a2a2a;
+  --text: #ededed;
+  --text-dim: #888;
+  --text-faint: #555;
+  --accent: #fff;
+  --accent-2: #ff3b6e;
+  --accent-glow: rgba(255,255,255,.08);
+  --success: #00e5cc;
+  --warn: #ffcc00;
+  --ruler: #111;
+  --page-bg: #0a0a0a;
+  --page-shadow: 0 8px 40px rgba(255,255,255,.06);
+  --graph-node: #fff;
+  --graph-edge: rgba(255,255,255,.06);
+  --code-bg: #0a0a0a;
+  --selection: rgba(255,255,255,.15);
+}
+
+/* LIGHT */
+[data-theme="light"] {
+  --bg: #f5f1eb;
+  --bg-2: #fffbf6;
+  --bg-3: #ece6dc;
+  --bg-4: #ddd5c8;
+  --surface: #fffbf6;
+  --surface-2: #f0ebe2;
+  --border: #ddd5c8;
+  --border-strong: #c8bcad;
+  --text: #1a1a1e;
+  --text-dim: #6e6a64;
+  --text-faint: #9a9590;
+  --accent: #5b4bd5;
+  --accent-2: #d9407a;
+  --accent-glow: rgba(91,75,213,.14);
+  --success: #1a9e8a;
+  --warn: #b8860b;
+  --ruler: #ece6dc;
+  --page-bg: #fffbf6;
+  --page-shadow: 0 8px 40px rgba(0,0,0,.1);
+  --graph-node: #5b4bd5;
+  --graph-edge: rgba(0,0,0,.07);
+  --code-bg: #f0ebe2;
+  --selection: rgba(91,75,213,.18);
+}
+
+/* BLOOM — pink/cyan aesthetic light */
+[data-theme="bloom"] {
+  --bg: #fdf6ff;
+  --bg-2: #ffffff;
+  --bg-3: #f3e8ff;
+  --bg-4: #e8d5ff;
+  --surface: #ffffff;
+  --surface-2: #fdf6ff;
+  --border: #f0d6ff;
+  --border-strong: #e0b8ff;
+  --text: #2d1a3a;
+  --text-dim: #8a6a9a;
+  --text-faint: #b89acc;
+  --accent: #ff6b9d;
+  --accent-2: #4ecdc4;
+  --accent-glow: rgba(255,107,157,.18);
+  --success: #4ecdc4;
+  --warn: #ffb347;
+  --ruler: #f3e8ff;
+  --page-bg: #ffffff;
+  --page-shadow: 0 8px 40px rgba(255,107,157,.12);
+  --graph-node: #ff6b9d;
+  --graph-edge: rgba(200,100,180,.12);
+  --code-bg: #fdf6ff;
+  --selection: rgba(255,107,157,.2);
+}

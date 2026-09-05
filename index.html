@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reign — Writing Studio</title>
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icons/32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="assets/icons/16x16.png">
+<link rel="apple-touch-icon" sizes="512x512" href="assets/icons/icon.png">
+<link rel="stylesheet" href="assets/fonts/fonts.css">
+<link rel="stylesheet" href="src/styles/themes.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#141420">
+<link rel="stylesheet" href="src/styles/layout.css">
+<link rel="stylesheet" href="src/styles/editor.css">
+</head>
+<body data-theme="dark" data-view="edit">
+
+<!-- ── Titlebar ── -->
+<header id="titlebar">
+  <div class="tb-left">
+    <button id="btn-sidebar-left" class="icon-btn" title="Toggle file drawer">☰</button>
+    <div class="logo">
+      <span class="logo-mark">◈</span>
+      <span class="logo-type">REIGN</span>
+      <span class="logo-sub">writing studio</span>
+    </div>
+  </div>
+  <div class="tb-center">
+    <div id="doc-title-wrap">
+      <input id="doc-title" value="Untitled Manuscript" spellcheck="false">
+      <span id="doc-dirty" class="hidden">●</span>
+    </div>
+    <span id="doc-path">/ manuscripts / untitled.md</span>
+  </div>
+  <div class="tb-right">
+    <div class="view-switcher" id="view-switcher">
+      <button data-view="edit" class="vs-btn active" title="Editor (Ctrl+1)">✎ Edit</button>
+      <button data-view="preview" class="vs-btn" title="Preview (Ctrl+2)">◫ Preview</button>
+      <button data-view="novel" class="vs-btn" title="Novel view (Ctrl+3)">📖 Novel</button>
+      <button data-view="graph" class="vs-btn" title="Graph view (Ctrl+4)">⬡ Graph</button>
+    </div>
+    <div class="tb-divider"></div>
+    <button id="btn-command" class="icon-btn" title="Command palette (Ctrl+K)">⌘ K</button>
+    <button id="btn-sidebar-right" class="icon-btn" title="Toggle inspector">◧</button>
+  </div>
+</header>
+
+<!-- ── Toolbar (LibreOffice-style) ── -->
+<nav id="toolbar">
+  <div class="tb-group">
+    <button class="tbtn" data-cmd="new" title="New document (Ctrl+N)"><span>＋</span> New</button>
+    <button class="tbtn" data-cmd="open" title="Open (Ctrl+O)">⧉ Open</button>
+    <button class="tbtn" data-cmd="save" title="Save (Ctrl+S)">💾 Save</button>
+    <div class="tsep"></div>
+    <button class="tbtn" data-cmd="undo" title="Undo (Ctrl+Z)">↩</button>
+    <button class="tbtn" data-cmd="redo" title="Redo (Ctrl+Y)">↪</button>
+  </div>
+  <div class="tb-group">
+    <select id="style-select" title="Paragraph style">
+      <option value="p">Normal</option>
+      <option value="h1">Heading 1</option>
+      <option value="h2">Heading 2</option>
+      <option value="h3">Heading 3</option>
+      <option value="blockquote">Quote</option>
+      <option value="pre">Code Block</option>
+    </select>
+    <select id="font-select" title="Font family">
+      <option value="Instrument Sans">Sans — Instrument</option>
+      <option value="Newsreader">Serif — Newsreader</option>
+      <option value="JetBrains Mono">Mono — JetBrains</option>
+      <option value="Fraunces">Display — Fraunces</option>
+    </select>
+    <select id="size-select" title="Font size">
+      <option value="14">14</option>
+      <option value="15">15</option>
+      <option value="16" selected>16</option>
+      <option value="18">18</option>
+      <option value="21">21</option>
+      <option value="26">26</option>
+    </select>
+  </div>
+  <div class="tb-group fmt-group">
+    <button class="tbtn fmt" data-fmt="bold" title="Bold (Ctrl+B)"><b>B</b></button>
+    <button class="tbtn fmt" data-fmt="italic" title="Italic (Ctrl+I)"><i>I</i></button>
+    <button class="tbtn fmt" data-fmt="underline" title="Underline (Ctrl+U)"><u>U</u></button>
+    <button class="tbtn fmt" data-fmt="strike" title="Strikethrough"><s>S</s></button>
+    <div class="tsep"></div>
+    <button class="tbtn fmt" data-fmt="alignLeft" title="Align left">≡</button>
+    <button class="tbtn fmt" data-fmt="alignCenter" title="Center">≣</button>
+    <button class="tbtn fmt" data-fmt="alignRight" title="Align right">≡</button>
+    <button class="tbtn fmt" data-fmt="justify" title="Justify">☰</button>
+    <div class="tsep"></div>
+    <button class="tbtn fmt" data-fmt="ul" title="Bullet list">• List</button>
+    <button class="tbtn fmt" data-fmt="ol" title="Numbered list">1. List</button>
+    <button class="tbtn fmt" data-fmt="blockquote" title="Blockquote">❝ Quote</button>
+    <button class="tbtn fmt" data-fmt="code" title="Inline code">‹› Code</button>
+    <div class="tsep"></div>
+    <button class="tbtn fmt" data-fmt="link" title="Insert link (Ctrl+K)">🔗 Link</button>
+    <button class="tbtn fmt" data-fmt="image" title="Insert image">🖼 Image</button>
+    <button class="tbtn fmt" data-fmt="table" title="Insert table">⊞ Table</button>
+    <button class="tbtn fmt" data-fmt="hr" title="Horizontal rule">— Rule</button>
+  </div>
+  <div class="tb-group tb-right-group">
+    <label class="toggle-label" title="Syntax highlighting">
+      <input type="checkbox" id="toggle-syntax" checked>
+      <span class="toggle-track"><span class="toggle-thumb"></span></span>
+      <span class="toggle-text">{ } Highlight</span>
+    </label>
+    <div class="theme-dots" id="theme-dots">
+      <button class="theme-dot active" data-theme="dark" title="Dark" style="background:#1a1a2e"></button>
+      <button class="theme-dot" data-theme="amoled" title="AMOLED" style="background:#000"></button>
+      <button class="theme-dot" data-theme="light" title="Light" style="background:#f5f1eb"></button>
+      <button class="theme-dot" data-theme="bloom" title="Bloom" style="background:linear-gradient(135deg,#ff6b9d,#4ecdc4)"></button>
+    </div>
+  </div>
+</nav>
+
+<!-- ── Main Layout ── -->
+<div id="layout">
+
+  <!-- Left Sidebar -->
+  <aside id="sidebar-left">
+    <div class="sb-tabs">
+      <button class="sb-tab active" data-tab="files">Files</button>
+      <button class="sb-tab" data-tab="outline">Outline</button>
+      <button class="sb-tab" data-tab="cards">Cards</button>
+      <button class="sb-tab" data-tab="search">Search</button>
+    </div>
+
+    <!-- Files panel -->
+    <div class="sb-panel active" data-panel="files">
+      <div class="sb-actions">
+        <button class="mini-btn" id="btn-new-file" title="New note">＋ Note</button>
+        <button class="mini-btn" id="btn-new-folder" title="New folder">▣ Folder</button>
+        <button class="mini-btn" id="btn-import" title="Import file">⤓ Import</button>
+      </div>
+      <div id="file-tree"></div>
+      <div class="sb-section-label">TEMPLATES</div>
+      <div class="template-list">
+        <button class="template-btn" data-template="character">👤 Character Sheet</button>
+        <button class="template-btn" data-template="world">🌍 Worldbuilding</button>
+        <button class="template-btn" data-template="scene">🎬 Scene Card</button>
+        <button class="template-btn" data-template="chapter">📑 Chapter</button>
+      </div>
+    </div>
+
+    <!-- Outline panel -->
+    <div class="sb-panel" data-panel="outline">
+      <div id="outline-tree"></div>
+    </div>
+
+    <!-- Cards / Corkboard panel -->
+    <div class="sb-panel" data-panel="cards">
+      <div class="sb-actions">
+        <button class="mini-btn" id="btn-add-card">＋ Card</button>
+        <button class="mini-btn" id="btn-cards-view">⊞ Grid</button>
+      </div>
+      <div id="cards-board"></div>
+    </div>
+
+    <!-- Search panel -->
+    <div class="sb-panel" data-panel="search">
+      <div class="search-box">
+        <input id="search-input" placeholder="Search manuscripts…">
+        <span class="search-icon">⌕</span>
+      </div>
+      <label class="search-opt"><input type="checkbox" id="search-regex"> Regex</label>
+      <label class="search-opt"><input type="checkbox" id="search-case"> Case sensitive</label>
+      <div id="search-results"></div>
+    </div>
+
+    <!-- Bottom: daily goal -->
+    <div id="daily-goal">
+      <div class="goal-head">
+        <span>Daily Goal</span>
+        <button id="goal-edit" class="icon-btn sm">✎</button>
+      </div>
+      <div class="goal-bar-wrap">
+        <div class="goal-bar"><div id="goal-fill"></div></div>
+        <span id="goal-text">0 / 500 words</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Editor Area -->
+  <main id="main">
+    <!-- Ruler (LibreOffice-style) -->
+    <div id="ruler">
+      <div class="ruler-marks"></div>
+      <div class="ruler-margin ruler-margin-left" title="Left margin"></div>
+      <div class="ruler-margin ruler-margin-right" title="Right margin"></div>
+    </div>
+
+    <!-- Edit view: contenteditable -->
+    <div id="view-edit" class="view active">
+      <div id="editor-wrap">
+        <div id="editor" contenteditable="true" spellcheck="true" data-placeholder="Begin writing…  —  Type [[ to link another note, or / for commands."></div>
+      </div>
+    </div>
+
+    <!-- Preview view -->
+    <div id="view-preview" class="view">
+      <article id="preview-article"></article>
+    </div>
+
+    <!-- Novel view -->
+    <div id="view-novel" class="view">
+      <div id="novel-controls">
+        <button class="mini-btn" id="novel-font-minus">A−</button>
+        <button class="mini-btn" id="novel-font-plus">A＋</button>
+        <span class="novel-sep"></span>
+        <button class="mini-btn" id="novel-narrow"> Narrow</button>
+        <button class="mini-btn" id="novel-wide"> Wide</button>
+        <span class="novel-sep"></span>
+        <button class="mini-btn" id="novel-paged" title="Toggle paged vs scroll">⊟ Pages</button>
+      </div>
+      <div id="novel-pages"></div>
+    </div>
+
+    <!-- Graph view (Obsidian-style) -->
+    <div id="view-graph" class="view">
+      <div id="graph-toolbar">
+        <button class="mini-btn" id="graph-reset" title="Reset view">⟲ Reset</button>
+        <button class="mini-btn" id="graph-center" title="Center on active">◎ Center</button>
+        <button class="mini-btn" id="graph-fit" title="Fit all">⧉ Fit</button>
+        <button class="mini-btn" id="graph-export" title="Export PNG">⤓ PNG</button>
+        <span class="novel-sep"></span>
+        <label class="mini-btn"><input type="checkbox" id="graph-labels" checked> Labels</label>
+        <label class="mini-btn"><input type="checkbox" id="graph-orphans"> Orphans</label>
+        <span class="novel-sep"></span>
+        <input type="range" id="graph-depth" min="1" max="4" value="2" title="Link depth">
+        <span id="graph-depth-label">depth 2</span>
+        <span class="novel-sep"></span>
+        <input id="graph-search" placeholder="Filter…" style="width:110px;background:var(--bg-3);border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:99px;font-size:11px">
+        <div style="display:inline-flex;gap:2px;margin-left:4px">
+          <button class="mini-btn active" data-graph-mode="all" title="All notes">All</button>
+          <button class="mini-btn" data-graph-mode="local" title="Neighbors of active">Local</button>
+        </div>
+      </div>
+      <canvas id="graph-canvas"></canvas>
+      <div id="graph-tooltip"></div>
+      <div id="graph-legend">
+        <span><i class="legend-dot" style="background:var(--accent)"></i> Manuscript</span>
+        <span><i class="legend-dot" style="background:#ff6b9d"></i> Character</span>
+        <span><i class="legend-dot" style="background:#4ecdc4"></i> World</span>
+        <span><i class="legend-dot" style="background:#f0c040"></i> Scene</span>
+      </div>
+    </div>
+  </main>
+
+  <!-- Right Sidebar / Inspector -->
+  <aside id="sidebar-right">
+    <div class="sb-tabs">
+      <button class="sb-tab active" data-tab="props">Inspector</button>
+      <button class="sb-tab" data-tab="backlinks">Links</button>
+      <button class="sb-tab" data-tab="stats">Stats</button>
+    </div>
+
+    <div class="sb-panel active" data-panel="props">
+      <div class="prop-group">
+        <label>Word count</label>
+        <div id="prop-words" class="prop-value">0</div>
+      </div>
+      <div class="prop-group">
+        <label>Characters</label>
+        <div id="prop-chars" class="prop-value">0</div>
+      </div>
+      <div class="prop-group">
+        <label>Reading time</label>
+        <div id="prop-reading" class="prop-value">0 min</div>
+      </div>
+      <div class="prop-group">
+        <label>Paragraphs</label>
+        <div id="prop-paras" class="prop-value">0</div>
+      </div>
+      <div class="sb-section-label">WRITING AIDS</div>
+      <label class="check-row"><input type="checkbox" id="opt-focus"> Focus mode <span class="hint">dims other paras</span></label>
+      <label class="check-row"><input type="checkbox" id="opt-typewriter"> Typewriter <span class="hint">center cursor</span></label>
+      <label class="check-row"><input type="checkbox" id="opt-zen"> Zen <span class="hint">fullscreen, no chrome</span></label>
+      <div class="sb-section-label">EXPORT</div>
+      <button class="wide-btn" data-export="pdf">⎙ Export PDF</button>
+      <button class="wide-btn" data-export="html">⟡ Export HTML</button>
+      <button class="wide-btn" data-export="md">⬇ Export Markdown</button>
+      <button class="wide-btn" data-export="txt">≡ Export Plain Text</button>
+      <div class="sb-section-label">REFERENCE ID</div>
+      <div class="ref-id-row">
+        <code id="ref-id">reign://untitled-manuscript</code>
+        <button id="btn-copy-ref" class="mini-btn" title="Copy reference link">⧉</button>
+      </div>
+      <p class="hint-text">Other apps can link to this document via its <code>reign://</code> URI or embed it with <code>![[title]]</code> transclusion.</p>
+    </div>
+
+    <div class="sb-panel" data-panel="backlinks">
+      <div class="sb-section-label">OUTGOING LINKS</div>
+      <div id="outgoing-links" class="link-list"></div>
+      <div class="sb-section-label">BACKLINKS</div>
+      <div id="backlinks-list" class="link-list"></div>
+      <div class="sb-section-label">UNLINKED MENTIONS</div>
+      <div id="unlinked-list" class="link-list"></div>
+    </div>
+
+    <div class="sb-panel" data-panel="stats">
+      <div id="stats-panel">
+        <div class="stat-card">
+          <div class="stat-num" id="stat-words">0</div>
+          <div class="stat-label">words</div>
+        </div>
+        <div class="stat-row">
+          <span>Characters (no spaces)</span><b id="stat-chars-ns">0</b>
+        </div>
+        <div class="stat-row">
+          <span>Sentences</span><b id="stat-sentences">0</b>
+        </div>
+        <div class="stat-row">
+          <span>Paragraphs</span><b id="stat-paras">0</b>
+        </div>
+        <div class="stat-row">
+          <span>Avg. words / sentence</span><b id="stat-avg">0</b>
+        </div>
+        <div class="stat-row">
+          <span>Reading time</span><b id="stat-reading">0 min</b>
+        </div>
+        <div class="stat-row">
+          <span>Speaking time</span><b id="stat-speaking">0 min</b>
+        </div>
+        <div class="sb-section-label">SESSION</div>
+        <div class="stat-row">
+          <span>Written today</span><b id="stat-today">0</b>
+        </div>
+        <div class="stat-row">
+          <span>Time writing</span><b id="stat-session-time">00:00</b>
+        </div>
+        <div class="stat-row">
+          <span>Last saved</span><b id="stat-saved">never</b>
+        </div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- ── Status Bar ── -->
+<footer id="statusbar">
+  <div class="sb-left">
+    <span id="status-words">0 words</span>
+    <span class="dot">·</span>
+    <span id="status-chars">0 characters</span>
+    <span class="dot">·</span>
+    <span id="status-linecol">Ln 1, Col 1</span>
+  </div>
+  <div class="sb-center">
+    <span id="status-mode">Normal</span>
+  </div>
+  <div class="sb-right">
+    <button id="btn-pomodoro" class="status-btn" title="Pomodoro timer">◷ 25:00</button>
+    <span class="dot">·</span>
+    <span id="status-zoom">100%</span>
+    <button id="btn-zoom-in" class="status-btn">＋</button>
+    <button id="btn-zoom-out" class="status-btn">－</button>
+  </div>
+</footer>
+
+<!-- ── Command Palette ── -->
+<div id="palette-overlay" class="hidden">
+  <div id="palette">
+    <input id="palette-input" placeholder="Type a command or search…">
+    <div id="palette-list"></div>
+    <div id="palette-hint">↑↓ navigate · ↵ select · esc close</div>
+  </div>
+</div>
+
+<!-- ── Wikilink Autocomplete ── -->
+<div id="wikilink-menu" class="hidden"></div>
+
+<!-- ── Slash Menu ── -->
+<div id="slash-menu" class="hidden"></div>
+
+<!-- ── Find Bar ── -->
+<div id="find-bar" class="hidden">
+  <input id="find-input" placeholder="Find…">
+  <input id="replace-input" placeholder="Replace…">
+  <button id="btn-find-prev" title="Previous">↑</button>
+  <button id="btn-find-next" title="Next">↓</button>
+  <button id="btn-replace-one">Replace</button>
+  <button id="btn-replace-all">All</button>
+  <label><input type="checkbox" id="find-case"> Aa</label>
+  <label><input type="checkbox" id="find-word"> " "</label>
+  <button id="btn-find-close">✕</button>
+</div>
+
+<input type="file" id="file-picker" accept=".md,.txt,.html" hidden>
+<script type="module" src="src/js/main.js"></script>
+<script nomodule src="app.bundled.js"></script>
+<script>
+// Offline: register service worker (browser only, not Electron, not file://)
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  window.addEventListener('load', ()=> navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
